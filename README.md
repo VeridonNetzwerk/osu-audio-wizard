@@ -29,7 +29,7 @@
 
 ## 🚀 Quick Start
 
-Open **https://veridonnetzwerk.github.io/osu-audio-wizard/**
+1. Open **https://veridonnetzwerk.github.io/osu-audio-wizard/**
 
 Alternative:
 1. Download the source code.
