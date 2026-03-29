@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Offset Wizard</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --panel: #1b1b1b;
+      --text: #f2f2f2;
+      --muted: #a0a0a0;
+      --accent: #00e5ff; /* Cyan-Akzent */
+      --accent-2: #ff4fd8; /* Pink als zweite Akzentfarbe */
+      --danger: #ff6b6b;
+      --ok: #75ff99;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #1a1a1a 0%, var(--bg) 45%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(980px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: clamp(16px, 2vw, 28px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2vw, 1.8rem);
+      letter-spacing: 0.3px;
+    }
+
+    .subtitle {
+      margin: 8px 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: #051015;
+      background: var(--accent);
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.15s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.06);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.secondary {
+      background: #2a2a2a;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+
+    .value-big {
+      font-size: clamp(1.4rem, 4vw, 2.4rem);
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.4px;
+    }
+
+    .value {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 0 0 16px;
+    }
+
+    .timeline-wrap {
+      background: #171717;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .axis-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 180px;
+      display: block;
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.0));
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status strong {
+      color: var(--ok);
+    }
+
+    .status.error strong {
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>osu!audio-wizard (<a href="https://github.com/VeridonNetzwerk/osu-audio-wizard" target="_blank">GitHub</a>)</h1>
+    <p class="subtitle">Click in time with the tone. After 32 clicks your hardware offset will be calculated.</p>
+
+    <section class="controls">
+      <button id="startBtn" type="button">Start</button>
+      <button id="stopBtn" type="button" class="secondary">Stop</button>
+      <button id="resetBtn" type="button" class="secondary">Reset</button>
+      <button id="copyBtn" type="button" class="secondary">Copy Offset</button>
+    </section>
+
+    <section class="stats">
+      <article class="card">
+        <div class="label">Median-Offset (med)</div>
+        <div id="avgValue" class="value-big">0.00 ms</div>
+        <div class="label" style="margin-top:6px;color:var(--muted);font-weight:600">Mean (debug)</div>
+        <div id="meanValue" class="value">0.00 ms</div>
+      </article>
+      <article class="card">
+        <div class="label">Standard Deviation (σ)</div>
+        <div id="stdValue" class="value">0.00 ms</div>
+      </article>
+      <article class="card">
+        <div class="label">Valid Hits</div>
+        <div id="hitCount" class="value">0 / 32</div>
+      </article>
+    </section>
+
+    <p class="hint">Inputs: Keyboard <strong>Z</strong>/<strong>X</strong> or mouse click (mousedown). Values outside ±200 ms are ignored as outliers.</p>
+
+    <section class="timeline-wrap" aria-label="Hit Error Bar">
+      <div class="axis-row">
+        <span>-200 ms</span>
+        <span>0 ms</span>
+        <span>+200 ms</span>
+      </div>
+      <canvas id="errorCanvas" width="900" height="180"></canvas>
+      <div id="statusText" class="status">Status: <strong>Ready</strong></div>
+    </section>
+  </main>
+
+  <script>
+    // ==============================
+    // Configuration
+    // ==============================
+    const BPM = 120;
+    const BEAT_MS = 60000 / BPM; // 500ms
+    const BEAT_SEC = BEAT_MS / 1000;
+    const DECAY_SEC = 0.05; // 50ms Envelope
+    const MIN_HITS = 32;
+    const OUTLIER_MS = 200;
+    const MATCH_WINDOW_MS = 300; // Erlaubte Distanz zu einem Beat beim Zuordnen eines Inputs
+
+    // ==============================
+    // DOM references
+    // ==============================
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const avgValue = document.getElementById('avgValue');
+    const stdValue = document.getElementById('stdValue');
+    const hitCount = document.getElementById('hitCount');
+    const statusText = document.getElementById('statusText');
+    const canvas = document.getElementById('errorCanvas');
+    const ctx2d = canvas.getContext('2d');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // ==============================
+    // Audio & scheduler state
+    // ==============================
+    let audioContext = null;
+    let schedulerTimerId = null;
+    let isRunning = false;
+    let nextBeatAudioTime = 0;
+
+    // Scheduling settings for low-latency operation
+    const lookAheadMs = 10; // reduced for less scheduler drift
+    const scheduleAheadSec = 0.12;
+
+    // Scheduled beats: each beat receives a target time in the performance.now() domain
+    // This allows comparing inputs directly to scheduled target times (performance.now())
+    const scheduledBeats = [];
+
+    // Measured differences in ms
+    const allDiffs = [];    // incl. outliers
+    const validDiffs = [];  // without outliers (|D| <= 200)
+
+    // Audio latency correction (ms)
+    let audioLatencyMs = 0;
+    let lastFinalOffsetMs = null;
+
+    // ==============================
+    // Helper functions
+    // ==============================
+    const formatMs = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ms`;
+
+    function setStatus(text, isError = false) {
+      statusText.classList.toggle('error', isError);
+      statusText.innerHTML = `Status: <strong>${text}</strong>`;
+    }
+
+    function mean(values) {
+      if (!values.length) return 0;
+      return values.reduce((sum, n) => sum + n, 0) / values.length;
+    }
+
+    function median(values) {
+      if (!values.length) return 0;
+      const s = Array.from(values).sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      if (s.length % 2 === 0) return (s[mid - 1] + s[mid]) / 2;
+      return s[mid];
+    }
+
+    function stdDev(values) {
+      if (!values.length) return 0;
+      const m = mean(values);
+      const variance = values.reduce((sum, n) => sum + (n - m) ** 2, 0) / values.length;
+      return Math.sqrt(variance);
+    }
+
+    // Median absolute deviation for robust outlier detection
+    function mad(values) {
+      if (!values.length) return 0;
+      const med = median(values);
+      const deviations = values.map(v => Math.abs(v - med));
+      return median(deviations);
+    }
+
+    // Try to use event.timeStamp directly; fallback to performance.now()
+    function getEventPerfTimestamp(e) {
+      if (!e) return performance.now();
+      const ts = e.timeStamp;
+      if (typeof ts === 'number' && ts > 0) return ts;
+      return performance.now();
+    }
+
+    function clamp(num, min, max) {
+      return Math.min(max, Math.max(min, num));
+    }
+
+    // ==============================
+    // Audio generation
+    // ==============================
+    function playClickAt(timeSec) {
+      // Kurzer Noise-Burst mit Hüllkurve → scharfe Transiente
+      const sampleRate = audioContext.sampleRate;
+      const length = Math.max(0.004, DECAY_SEC); // 4ms..50ms
+      const frameCount = Math.floor(length * sampleRate);
+      const buffer = audioContext.createBuffer(1, frameCount, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // White noise + simple window (Hann)
+      for (let i = 0; i < frameCount; i++) {
+        const n = (Math.random() * 2 - 1) * (1 - i / frameCount);
+        data[i] = n;
+      }
+
+      const src = audioContext.createBufferSource();
+      src.buffer = buffer;
+      const gain = audioContext.createGain();
+      gain.gain.setValueAtTime(0.0001, timeSec);
+      gain.gain.linearRampToValueAtTime(1.0, timeSec + 0.002);
+      gain.gain.linearRampToValueAtTime(0.0001, timeSec + length);
+
+      src.connect(gain);
+      gain.connect(audioContext.destination);
+      src.start(timeSec);
+      src.stop(timeSec + length + 0.02);
+    }
+
+    function scheduleBeat(timeSec) {
+      // Map target from AudioContext time to performance.now() time.
+      // Therefore the difference becomes: D = t_input - t_audio_target
+      const nowPerf = performance.now();
+      const nowAudio = audioContext.currentTime;
+      const targetPerf = nowPerf + (timeSec - nowAudio) * 1000;
+      scheduledBeats.push({ audioTime: timeSec, targetPerf });
+      playClickAt(timeSec);
+    }
+
+    function schedulerTick() {
+      if (!audioContext) return;
+
+      // Exaktes Scheduling auf Basis von audioContext.currentTime.
+      while (nextBeatAudioTime < audioContext.currentTime + scheduleAheadSec) {
+        scheduleBeat(nextBeatAudioTime);
+        nextBeatAudioTime += BEAT_SEC;
+      }
+
+      // Alte Beats entfernen, die weit in der Vergangenheit liegen.
+      const cutoff = performance.now() - 2000;
+      while (scheduledBeats.length && scheduledBeats[0].targetPerf < cutoff) {
+        scheduledBeats.shift();
+      }
+    }
+
+    // ==============================
+    // Input handling
+    // ==============================
+    function registerInput(e) {
+      if (!isRunning) return;
+
+      const inputPerf = getEventPerfTimestamp(e);
+      if (!scheduledBeats.length) {
+        setStatus('No scheduled beat available', true);
+        return;
+      }
+
+      // Remove missed beats (too far in the past) so that after pauses
+      // subsequent clicks are not treated as outliers.
+      while (scheduledBeats.length && inputPerf - scheduledBeats[0].targetPerf > MATCH_WINDOW_MS) {
+        // This beat was apparently missed; remove it without counting as a measurement.
+        scheduledBeats.shift();
+      }
+
+      // Jetzt das nächste geplante Element prüfen
+      if (!scheduledBeats.length) {
+        setStatus('No scheduled beat available (after skip)', true);
+        return;
+      }
+
+      const nextBeat = scheduledBeats[0];
+      const absDiff = Math.abs(inputPerf - nextBeat.targetPerf);
+      if (absDiff > MATCH_WINDOW_MS) {
+        // Input is outside the matching window
+        setStatus('Input has no matching beat', true);
+        return;
+      }
+
+      // Consume the beat and compute the difference
+      scheduledBeats.shift();
+      const rawDiffMs = inputPerf - nextBeat.targetPerf;
+      const diffMs = rawDiffMs - (audioLatencyMs || 0);
+
+      allDiffs.push(diffMs);
+
+      if (Math.abs(diffMs) <= OUTLIER_MS) {
+        validDiffs.push(diffMs);
+        setStatus('Measuring...');
+      } else {
+        setStatus('Outlier ignored', true);
+      }
+
+      updateStats();
+      drawErrorBar();
+
+      if (validDiffs.length >= MIN_HITS) {
+        // Robuste MAD-Filterung vor finaler Berechnung
+        const med = median(validDiffs);
+        const deviation = mad(validDiffs) || 0.0001;
+        const threshold = Math.max(3 * deviation, 10); // 3*MAD oder min 10ms
+        const filtered = validDiffs.filter(v => Math.abs(v - med) <= threshold);
+        const finalMed = median(filtered);
+        const finalStd = stdDev(filtered);
+
+        const reliable = finalStd <= 40;
+
+        lastFinalOffsetMs = finalMed;
+        setStatus(`Done: Offset ${formatMs(finalMed)} ${reliable ? '' : '(unreliable)'}`, !reliable);
+      }
+    }
+
+    function onKeyDown(event) {
+      if (event.repeat) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' || key === 'x') {
+        registerInput(event);
+      }
+    }
+
+    function onMouseDown(event) {
+      registerInput(event);
+    }
+
+    // ==============================
+    // UI / statistics
+    // ==============================
+    function updateStats() {
+      const med = median(validDiffs);
+      const m = mean(validDiffs);
+      const s = stdDev(validDiffs);
+
+      avgValue.textContent = `${med.toFixed(2)} ms`;
+      meanValue.textContent = `${m.toFixed(2)} ms`;
+      stdValue.textContent = `${s.toFixed(2)} ms`;
+      hitCount.textContent = `${validDiffs.length} / ${MIN_HITS}`;
+
+      if (!validDiffs.length) {
+        avgValue.textContent = '0.00 ms';
+        meanValue.textContent = '0.00 ms';
+        stdValue.textContent = '0.00 ms';
+      }
+    }
+
+    function drawErrorBar() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx2d.clearRect(0, 0, w, h);
+
+      const centerY = h / 2;
+      const centerX = w / 2;
+
+      // Center line (Hit-Error-Bar)
+      ctx2d.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(18, centerY);
+      ctx2d.lineTo(w - 18, centerY);
+      ctx2d.stroke();
+
+      // 0ms Marker
+      ctx2d.strokeStyle = 'rgba(0,229,255,0.8)';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(centerX, centerY - 28);
+      ctx2d.lineTo(centerX, centerY + 28);
+      ctx2d.stroke();
+
+      // Render up to the last 64 inputs
+      const recent = allDiffs.slice(-64);
+      const laneTop = centerY - 20;
+      const laneBottom = centerY + 20;
+
+      for (let i = 0; i < recent.length; i++) {
+        const d = recent[i];
+        // Scale: -200..+200 ms mapped to drawing area
+        const x = 18 + ((clamp(d, -OUTLIER_MS, OUTLIER_MS) + OUTLIER_MS) / (OUTLIER_MS * 2)) * (w - 36);
+
+        const isOutlier = Math.abs(d) > OUTLIER_MS;
+        ctx2d.strokeStyle = isOutlier ? 'rgba(255,107,107,0.55)' : 'rgba(255,79,216,0.95)';
+        ctx2d.lineWidth = 2;
+        ctx2d.beginPath();
+        ctx2d.moveTo(x, laneTop);
+        ctx2d.lineTo(x, laneBottom);
+        ctx2d.stroke();
+      }
+    }
+
+    // ==============================
+    // Controls
+    // ==============================
+    async function ensureAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+      }
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      // Try to read baseLatency (may be undefined in some browsers)
+      try {
+        audioLatencyMs = (audioContext.baseLatency || 0) * 1000;
+      } catch (err) {
+        audioLatencyMs = 0;
+      }
+    }
+
+    async function start() {
+      if (isRunning) return;
+      try {
+        await ensureAudioContext();
+      } catch {
+        setStatus('Could not start AudioContext', true);
+        return;
+      }
+
+      isRunning = true;
+      nextBeatAudioTime = audioContext.currentTime + 0.08;
+
+      schedulerTick();
+      schedulerTimerId = window.setInterval(schedulerTick, lookAheadMs);
+      setStatus('Running — click on the beat');
+    }
+
+    function stop() {
+      isRunning = false;
+      if (schedulerTimerId) {
+        clearInterval(schedulerTimerId);
+        schedulerTimerId = null;
+      }
+      setStatus('Stopped');
+    }
+
+    function resetAll() {
+      stop();
+      scheduledBeats.length = 0;
+      allDiffs.length = 0;
+      validDiffs.length = 0;
+      updateStats();
+      drawErrorBar();
+      setStatus('Reset');
+    }
+
+    // ==============================
+    // Events
+    // ==============================
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    resetBtn.addEventListener('click', resetAll);
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      if (lastFinalOffsetMs === null) {
+        navigator.clipboard?.writeText('No offset calculated yet.');
+        setStatus('No offset to copy', true);
+        return;
+      }
+      const txt = `${lastFinalOffsetMs.toFixed(2)} ms`;
+      navigator.clipboard?.writeText(txt).then(() => setStatus('Offset copied'));
+    });
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('resize', drawErrorBar);
+
+    // Initial render
+    updateStats();
+    drawErrorBar();
+  </script>
+</body>
+</html>
