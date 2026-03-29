@@ -29,18 +29,20 @@
 
 ## 🚀 Quick Start
 
-1. Öffne die Datei [index.html](index.html) in einem modernen Browser (Chrome, Edge, Firefox).
-2. Falls Autoplay/Clipboard-Einschränkungen auftreten, serviere das Verzeichnis lokal:
+Open **https://veridonnetzwerk.github.io/osu-audio-wizard/**
 
-```bash
-npx http-server . -p 8080
-# oder (Python 3)
-python -m http.server 8080
-```
-
-3. Öffne `http://localhost:8080` im Browser und nutze die UI zum Messen des Offsets.
-
-Hinweis: Es gibt keinen separaten Installer oder Launcher — das Projekt ist eine einfache statische Web‑App.
+Alternative:
+1. Download the source code.
+2. Extract the source code.
+3. Open the file [index.html](index.html) in a modern browser (Chrome, Edge, Firefox).
+> 4. If autoplay/clipboard restrictions occur, serve the directory locally:
+> ```bash
+> npx http-server . -p 8080
+> # or (Python 3)
+> python -m http.server 8080
+> ```
+>
+> 5. Open `http://localhost:8080` in your browser and use the UI to measure the input offset.
 
 ---
 
@@ -51,10 +53,10 @@ Full documentation is available in the **[GitHub Wiki](https://github.com/Verido
 | Page | Description |
 |------|-------------|
 | [Overview](docs/overview.md#L1) | Project overview |
-| [Usage](docs/usage.md#L1) | Schritt‑für‑Schritt Nutzung |
-| [How It Works](docs/how-it-works.md#L1) | Technische Details |
-| [Troubleshooting](docs/troubleshooting.md#L1) | Fehlerbehebung |
-| [FAQ](docs/faq.md#L1) | Häufige Fragen |
+| [Usage](docs/usage.md#L1) | Step-by-step usage |
+| [How It Works](docs/how-it-works.md#L1) | Technical details |
+| [Troubleshooting](docs/troubleshooting.md#L1) | Troubleshooting |
+| [FAQ](docs/faq.md#L1) | Frequently asked questions |
 
 ---
 
