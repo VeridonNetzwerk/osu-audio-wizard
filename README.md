@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔉 osu!offset-wizard
+# 🔉 osu!audio-wizard
 
 **Get your accurate input offset for osu!**
 
